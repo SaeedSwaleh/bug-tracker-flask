@@ -39,9 +39,8 @@
         </label>
         <textarea
           id="description" name="description"
-          class="form-control"
-          rows="5"
-          placeholder="Steps to reproduce, expected vs actual behaviour, environment…"
+          class="form-control" rows="5"
+          placeholder="Steps to reproduce, expected vs actual behaviour…"
           required
           style="border-radius:10px; border:1.5px solid var(--border); background:var(--cream);
                  font-family:'DM Sans',sans-serif; padding:0.65rem 1rem; resize:vertical;"
@@ -49,7 +48,7 @@
       </div>
 
       <!-- Priority -->
-      <div class="mb-4">
+      <div class="mb-3">
         <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:0.5rem;">Priority</label>
         <div class="d-flex gap-2">
           {% set pcolors = {'Low':'#4a90d9','Medium':'#f5a623','High':'#c0392b'} %}
@@ -63,14 +62,37 @@
                   style="display:block; text-align:center; padding:0.45rem 0;
                          border-radius:999px; font-size:0.82rem; font-weight:600;
                          border:1.5px solid {{ pcolors[p] }};
-                         background:{{ pcolors[p] + '22' if form.get('priority','Medium') == p else '#fff' }};
-                         color:{{ pcolors[p] }};
-                         transition:background 0.18s;">
+                         background:{{ pcolors[p] + '33' if form.get('priority','Medium') == p else '#fff' }};
+                         color:{{ pcolors[p] }}; transition:background 0.15s;">
               {{ p }}
             </span>
           </label>
           {% endfor %}
         </div>
+      </div>
+
+      <!-- Assign to (optional) -->
+      <div class="mb-4">
+        <label for="assigned_to" style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:0.4rem;">
+          Assign to
+          <span style="font-weight:400; color:var(--muted); font-size:0.8rem;">(optional)</span>
+        </label>
+        <select id="assigned_to" name="assigned_to" class="form-select"
+                style="border-radius:10px; border:1.5px solid var(--border);
+                       font-family:'DM Sans',sans-serif; font-size:0.9rem; background:var(--cream);">
+          <option value="">— Unassigned —</option>
+          <!-- Quick shortcut to assign to yourself -->
+          <option value="{{ current_user.id }}"
+                  {{ 'selected' if form.get('assigned_to')|string == current_user.id|string }}>
+            ★ Me ({{ current_user.username }})
+          </option>
+          {% for user in users if user.id != current_user.id %}
+          <option value="{{ user.id }}"
+                  {{ 'selected' if form.get('assigned_to')|string == user.id|string }}>
+            {{ user.username }}
+          </option>
+          {% endfor %}
+        </select>
       </div>
 
       <button type="submit"
@@ -88,15 +110,10 @@
 {% block scripts %}
 <script>
   const pcolors = { Low: '#4a90d9', Medium: '#f5a623', High: '#c0392b' };
-
   function updatePriority(radio) {
     ['Low', 'Medium', 'High'].forEach(p => {
       const pill = document.getElementById('pill-' + p);
-      if (p === radio.value) {
-        pill.style.background = pcolors[p] + '33';
-      } else {
-        pill.style.background = '#fff';
-      }
+      pill.style.background = (p === radio.value) ? pcolors[p] + '33' : '#fff';
     });
   }
 </script>

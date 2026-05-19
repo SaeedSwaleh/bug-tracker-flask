@@ -2,10 +2,10 @@
 {% block title %}All Bugs — Bug Tracker{% endblock %}
 
 {% block content %}
-<div class="container py-5" style="max-width: 900px;">
+<div class="container py-5" style="max-width: 960px;">
 
   <!-- Header -->
-  <div style="border-bottom:2px solid var(--ink); padding-bottom:1.25rem; margin-bottom:2rem;"
+  <div style="border-bottom:2px solid var(--ink); padding-bottom:1.25rem; margin-bottom:1.75rem;"
        class="d-flex align-items-center justify-content-between flex-wrap gap-2">
     <h1 class="mb-0">All Bugs</h1>
     <a href="{{ url_for('create_bug') }}"
@@ -15,35 +15,62 @@
     </a>
   </div>
 
-  <!-- Filters -->
-  <div class="d-flex flex-wrap gap-2 mb-3">
-    <a href="{{ url_for('bugs') }}"
-       style="font-size:0.8rem; font-weight:600; padding:0.3rem 0.85rem; border-radius:999px;
+  <!-- Assignee tabs -->
+  <div class="d-flex gap-2 flex-wrap mb-3">
+    {% for label, af_val in [('All Bugs',''), ('Assigned to Me','me'), ('Unassigned','none')] %}
+    <a href="{{ url_for('bugs', assignee=af_val, status=status_filter, priority=priority_filter) }}"
+       style="font-size:0.82rem; font-weight:600; padding:0.35rem 1rem; border-radius:999px;
+              text-decoration:none; transition:background 0.15s;
+              background:{{ 'var(--ink)' if assignee_filter == af_val else '#fff' }};
+              color:{{ 'var(--cream)' if assignee_filter == af_val else 'var(--muted)' }};
+              border:1.5px solid {{ 'var(--ink)' if assignee_filter == af_val else 'var(--border)' }};">
+      {% if af_val == 'me' %}<i class="bi bi-person-check me-1"></i>{% endif %}
+      {% if af_val == 'none' %}<i class="bi bi-person-dash me-1"></i>{% endif %}
+      {{ label }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Status + priority filters -->
+  <div class="d-flex flex-wrap gap-2 mb-4">
+    <a href="{{ url_for('bugs', assignee=assignee_filter, priority=priority_filter) }}"
+       style="font-size:0.78rem; font-weight:600; padding:0.28rem 0.8rem; border-radius:999px;
               text-decoration:none;
-              background:{{ 'var(--ink)' if not status_filter and not priority_filter else '#fff' }};
-              color:{{ 'var(--cream)' if not status_filter and not priority_filter else 'var(--muted)' }};
-              border:1.5px solid {{ 'var(--ink)' if not status_filter and not priority_filter else 'var(--border)' }};">
-      All
+              background:{{ 'var(--ink)' if not status_filter else '#fff' }};
+              color:{{ 'var(--cream)' if not status_filter else 'var(--muted)' }};
+              border:1.5px solid {{ 'var(--ink)' if not status_filter else 'var(--border)' }};">
+      All statuses
     </a>
     {% for s in statuses %}
-    <a href="{{ url_for('bugs', status=s, priority=priority_filter) }}"
-       style="font-size:0.8rem; font-weight:600; padding:0.3rem 0.85rem; border-radius:999px;
+    {% set sc = {'Open':'#c0392b','In Progress':'#f5a623','Closed':'#2d8a50'} %}
+    <a href="{{ url_for('bugs', assignee=assignee_filter, status=s, priority=priority_filter) }}"
+       style="font-size:0.78rem; font-weight:600; padding:0.28rem 0.8rem; border-radius:999px;
               text-decoration:none;
-              background:{{ 'var(--ink)' if status_filter == s else '#fff' }};
-              color:{{ 'var(--cream)' if status_filter == s else 'var(--muted)' }};
-              border:1.5px solid {{ 'var(--ink)' if status_filter == s else 'var(--border)' }};">
+              background:{{ sc[s] if status_filter == s else '#fff' }};
+              color:{{ '#fff' if status_filter == s else sc[s] }};
+              border:1.5px solid {{ sc[s] }};">
       {{ s }}
     </a>
     {% endfor %}
-    <span style="color:var(--border); margin:0 0.25rem;">|</span>
-    {% for p in priorities %}
-    {% set pcolors = {'Low':'#4a90d9','Medium':'#f5a623','High':'#c0392b'} %}
-    <a href="{{ url_for('bugs', status=status_filter, priority=p) }}"
-       style="font-size:0.8rem; font-weight:600; padding:0.3rem 0.85rem; border-radius:999px;
+
+    <span style="color:var(--border); padding:0 0.15rem; line-height:2;">|</span>
+
+    <a href="{{ url_for('bugs', assignee=assignee_filter, status=status_filter) }}"
+       style="font-size:0.78rem; font-weight:600; padding:0.28rem 0.8rem; border-radius:999px;
               text-decoration:none;
-              background:{{ pcolors[p] if priority_filter == p else '#fff' }};
-              color:{{ '#fff' if priority_filter == p else pcolors[p] }};
-              border:1.5px solid {{ pcolors[p] }};">
+              background:{{ 'var(--ink)' if not priority_filter else '#fff' }};
+              color:{{ 'var(--cream)' if not priority_filter else 'var(--muted)' }};
+              border:1.5px solid {{ 'var(--ink)' if not priority_filter else 'var(--border)' }};">
+      All priorities
+    </a>
+    {% for p in priorities %}
+    {% set pc = {'Low':'#4a90d9','Medium':'#f5a623','High':'#c0392b'} %}
+    <a href="{{ url_for('bugs', assignee=assignee_filter, status=status_filter, priority=p) }}"
+       style="font-size:0.78rem; font-weight:600; padding:0.28rem 0.8rem; border-radius:999px;
+              text-decoration:none;
+              background:{{ pc[p] if priority_filter == p else '#fff' }};
+              color:{{ '#fff' if priority_filter == p else pc[p] }};
+              border:1.5px solid {{ pc[p] }};">
       {{ p }}
     </a>
     {% endfor %}
@@ -53,52 +80,66 @@
   {% if bugs %}
   <div style="background:#fff; border:1.5px solid var(--border); border-radius:16px;
               overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
-    <!-- Table header -->
-    <div style="display:grid; grid-template-columns:3rem 1fr 7rem 8rem 8rem;
-                padding:0.75rem 1.25rem; border-bottom:1.5px solid var(--border);
-                font-size:0.7rem; font-weight:600; letter-spacing:0.1em;
+
+    <!-- Column headers -->
+    <div style="display:grid; grid-template-columns:3rem 1fr 9rem 7rem 8rem;
+                padding:0.7rem 1.25rem; border-bottom:1.5px solid var(--border);
+                font-size:0.68rem; font-weight:600; letter-spacing:0.1em;
                 text-transform:uppercase; color:var(--muted);">
       <span>#</span>
       <span>Title</span>
+      <span>Assigned to</span>
       <span>Priority</span>
       <span>Status</span>
-      <span>Assigned to</span>
     </div>
 
     {% for bug in bugs %}
-      {% set priority_colors = {'Low':'#4a90d9','Medium':'#f5a623','High':'#c0392b'} %}
-      {% set status_colors   = {'Open':'#c0392b','In Progress':'#f5a623','Closed':'#2d8a50'} %}
+      {% set pc = {'Low':'#4a90d9','Medium':'#f5a623','High':'#c0392b'} %}
+      {% set sc = {'Open':'#c0392b','In Progress':'#f5a623','Closed':'#2d8a50'} %}
       <a href="{{ url_for('bug_detail', bug_id=bug.id) }}"
-         style="display:grid; grid-template-columns:3rem 1fr 7rem 8rem 8rem;
-                align-items:center; padding:0.9rem 1.25rem;
+         style="display:grid; grid-template-columns:3rem 1fr 9rem 7rem 8rem;
+                align-items:center; padding:0.85rem 1.25rem;
                 border-bottom:1px solid var(--border); text-decoration:none; color:var(--ink);
                 transition:background 0.15s;"
          onmouseover="this.style.background='var(--cream)'"
          onmouseout="this.style.background=''">
-        <span style="font-size:0.78rem; color:var(--muted);">{{ bug.id }}</span>
-        <span style="font-weight:500; font-size:0.92rem; padding-right:1rem;">{{ bug.title }}</span>
+        <span style="font-size:0.76rem; color:var(--muted);">{{ bug.id }}</span>
+        <span style="font-weight:500; font-size:0.91rem; padding-right:0.75rem;">{{ bug.title }}</span>
+
+        <!-- Assignee -->
+        <span style="font-size:0.82rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          {% if bug.assignee %}
+            {% if bug.assigned_to == current_user.id %}
+              <span style="color:#8e44ad; font-weight:600;">
+                <i class="bi bi-person-check-fill me-1"></i>Me
+              </span>
+            {% else %}
+              <i class="bi bi-person me-1"></i>{{ bug.assignee.username }}
+            {% endif %}
+          {% else %}
+            <span style="opacity:0.4; font-size:0.78rem;">— unassigned</span>
+          {% endif %}
+        </span>
+
         <span>
-          <span style="font-size:0.72rem; font-weight:700; padding:0.2rem 0.65rem;
-                       border-radius:999px; background:{{ priority_colors[bug.priority] }}22;
-                       color:{{ priority_colors[bug.priority] }};">
+          <span style="font-size:0.7rem; font-weight:700; padding:0.2rem 0.65rem;
+                       border-radius:999px; background:{{ pc[bug.priority] }}22;
+                       color:{{ pc[bug.priority] }};">
             {{ bug.priority }}
           </span>
         </span>
         <span>
-          <span style="font-size:0.72rem; font-weight:700; padding:0.2rem 0.65rem;
-                       border-radius:999px; background:{{ status_colors[bug.status] }}22;
-                       color:{{ status_colors[bug.status] }};">
+          <span style="font-size:0.7rem; font-weight:700; padding:0.2rem 0.65rem;
+                       border-radius:999px; background:{{ sc[bug.status] }}22;
+                       color:{{ sc[bug.status] }};">
             {{ bug.status }}
           </span>
-        </span>
-        <span style="font-size:0.83rem; color:var(--muted);">
-          {{ bug.assignee.username if bug.assignee else '—' }}
         </span>
       </a>
     {% endfor %}
   </div>
 
-  <p style="font-size:0.8rem; color:var(--muted); margin-top:0.75rem; text-align:right;">
+  <p style="font-size:0.78rem; color:var(--muted); margin-top:0.65rem; text-align:right;">
     {{ bugs|length }} bug{{ 's' if bugs|length != 1 }}
   </p>
 
@@ -106,9 +147,10 @@
   <div style="background:#fff; border:1.5px dashed var(--border); border-radius:14px;
               padding:3rem; text-align:center; color:var(--muted);">
     <i class="bi bi-funnel" style="font-size:2rem; display:block; margin-bottom:0.5rem; opacity:0.35;"></i>
-    <p class="mb-0" style="font-size:0.9rem;">No bugs match these filters.</p>
+    <p class="mb-1" style="font-size:0.9rem; font-weight:500;">No bugs match these filters.</p>
+    <a href="{{ url_for('bugs') }}" style="font-size:0.82rem; color:var(--ink);">Clear all filters</a>
   </div>
   {% endif %}
 
 </div>
-{% endblock %}
+{% endblock %} 

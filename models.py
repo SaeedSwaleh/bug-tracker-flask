@@ -16,15 +16,14 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     created_at    = db.Column(db.DateTime,    default=datetime.utcnow)
 
-    # Relationships
     bugs_created  = db.relationship("Bug", foreign_keys="Bug.created_by",
                                     backref="creator",  lazy="dynamic")
     bugs_assigned = db.relationship("Bug", foreign_keys="Bug.assigned_to",
                                     backref="assignee", lazy="dynamic")
 
     def set_password(self, plain_text: str) -> None:
-        salt             = os.urandom(16).hex()
-        hashed           = hashlib.sha256(f"{salt}{plain_text}".encode()).hexdigest()
+        salt               = os.urandom(16).hex()
+        hashed             = hashlib.sha256(f"{salt}{plain_text}".encode()).hexdigest()
         self.password_hash = f"{salt}:{hashed}"
 
     def check_password(self, plain_text: str) -> bool:
@@ -45,7 +44,7 @@ class Bug(db.Model):
     PRIORITIES = ["Low", "Medium", "High"]
     STATUSES   = ["Open", "In Progress", "Closed"]
 
-    id          = db.Column(db.Integer,  primary_key=True)
+    id          = db.Column(db.Integer,     primary_key=True)
     title       = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text,        nullable=False)
     priority    = db.Column(db.String(20),  nullable=False, default="Medium")
@@ -57,4 +56,4 @@ class Bug(db.Model):
                             onupdate=datetime.utcnow)
 
     def __repr__(self) -> str:
-        return f"<Bug id={self.id} title={self.title!r} status={self.status!r}>"
+        return f"<Bug id={self.id} title={self.title!r} status={self.status!r}>" 

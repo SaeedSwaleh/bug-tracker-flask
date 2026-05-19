@@ -73,7 +73,6 @@ def signup():
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
-
         login_user(user)
         flash(f"Welcome, {user.username}! Your account has been created.", "success")
         return redirect(url_for("dashboard"))
@@ -125,16 +124,17 @@ def dashboard():
     in_progress_count = Bug.query.filter_by(status="In Progress").count()
     closed_count      = Bug.query.filter_by(status="Closed").count()
     total_count       = Bug.query.count()
-    recent_bugs       = (Bug.query
-                         .order_by(Bug.created_at.desc())
-                         .limit(5)
-                         .all())
+    assigned_to_me    = Bug.query.filter_by(
+                            assigned_to=current_user.id
+                        ).filter(Bug.status != "Closed").count()
+    recent_bugs       = Bug.query.order_by(Bug.created_at.desc()).limit(5).all()
 
     return render_template("dashboard.html",
                            open_count=open_count,
                            in_progress_count=in_progress_count,
                            closed_count=closed_count,
                            total_count=total_count,
+                           assigned_to_me=assigned_to_me,
                            recent_bugs=recent_bugs)
 
 
@@ -143,15 +143,20 @@ def dashboard():
 @app.route("/bugs")
 @login_required
 def bugs():
-    # Optional filters from query string  e.g. /bugs?status=Open&priority=High
-    status_filter   = request.args.get("status",   "")
-    priority_filter = request.args.get("priority", "")
+    status_filter    = request.args.get("status",    "")
+    priority_filter  = request.args.get("priority",  "")
+    assignee_filter  = request.args.get("assignee",  "")   # "me" | "none" | ""
 
     query = Bug.query
-    if status_filter   in Bug.STATUSES:
+
+    if status_filter in Bug.STATUSES:
         query = query.filter_by(status=status_filter)
     if priority_filter in Bug.PRIORITIES:
         query = query.filter_by(priority=priority_filter)
+    if assignee_filter == "me":
+        query = query.filter_by(assigned_to=current_user.id)
+    elif assignee_filter == "none":
+        query = query.filter(Bug.assigned_to.is_(None))
 
     all_bugs = query.order_by(Bug.created_at.desc()).all()
 
@@ -159,6 +164,7 @@ def bugs():
                            bugs=all_bugs,
                            status_filter=status_filter,
                            priority_filter=priority_filter,
+                           assignee_filter=assignee_filter,
                            statuses=Bug.STATUSES,
                            priorities=Bug.PRIORITIES)
 
@@ -166,10 +172,13 @@ def bugs():
 @app.route("/bugs/create", methods=["GET", "POST"])
 @login_required
 def create_bug():
+    users = User.query.order_by(User.username).all()
+
     if request.method == "POST":
         title       = request.form.get("title",       "").strip()
         description = request.form.get("description", "").strip()
         priority    = request.form.get("priority",    "Medium")
+        assignee_id = request.form.get("assigned_to", "")
 
         error = None
         if not title:
@@ -183,6 +192,7 @@ def create_bug():
             flash(error, "danger")
             return render_template("create_bug.html",
                                    priorities=Bug.PRIORITIES,
+                                   users=users,
                                    form=request.form)
 
         bug = Bug(
@@ -191,14 +201,17 @@ def create_bug():
             priority    = priority,
             status      = "Open",
             created_by  = current_user.id,
+            assigned_to = int(assignee_id) if assignee_id else None,
         )
         db.session.add(bug)
         db.session.commit()
-
         flash(f"Bug #{bug.id} created successfully.", "success")
         return redirect(url_for("bug_detail", bug_id=bug.id))
 
-    return render_template("create_bug.html", priorities=Bug.PRIORITIES, form={})
+    return render_template("create_bug.html",
+                           priorities=Bug.PRIORITIES,
+                           users=users,
+                           form={})
 
 
 @app.route("/bugs/<int:bug_id>")
@@ -220,7 +233,7 @@ def assign_bug(bug_id):
     user_id = request.form.get("user_id", "")
 
     if user_id == "":
-        bug.assigned_to = None          # unassign
+        bug.assigned_to = None
     else:
         user = User.query.get(int(user_id))
         if not user:
@@ -231,6 +244,18 @@ def assign_bug(bug_id):
     bug.updated_at = datetime.utcnow()
     db.session.commit()
     flash("Bug assignment updated.", "success")
+    return redirect(url_for("bug_detail", bug_id=bug_id))
+
+
+@app.route("/bugs/<int:bug_id>/assign-me", methods=["POST"])
+@login_required
+def assign_to_me(bug_id):
+    """One-click assign the bug to the currently logged-in user."""
+    bug             = Bug.query.get_or_404(bug_id)
+    bug.assigned_to = current_user.id
+    bug.updated_at  = datetime.utcnow()
+    db.session.commit()
+    flash("Bug assigned to you.", "success")
     return redirect(url_for("bug_detail", bug_id=bug_id))
 
 
@@ -249,6 +274,11 @@ def update_status(bug_id):
     db.session.commit()
     flash(f"Status updated to '{new_status}'.", "success")
     return redirect(url_for("bug_detail", bug_id=bug_id))
+
+
+@app.route("/test-s3")
+def test_s3():
+    return "Test route active."
 
 
 if __name__ == "__main__":
