@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Bug #{{ bug.id }} — Bug Tracker{% endblock %}
+
+{% block content %}
+{% set priority_colors = {'Low':'#4a90d9','Medium':'#f5a623','High':'#c0392b'} %}
+{% set status_colors   = {'Open':'#c0392b','In Progress':'#f5a623','Closed':'#2d8a50'} %}
+
+<div class="container py-5" style="max-width: 780px;">
+
+  <!-- Back link -->
+  <a href="{{ url_for('bugs') }}"
+     style="font-size:0.82rem; color:var(--muted); text-decoration:none;">
+    <i class="bi bi-arrow-left me-1"></i>Back to bugs
+  </a>
+
+  <!-- Bug header -->
+  <div style="border-bottom:2px solid var(--ink); padding:1.25rem 0; margin:1rem 0 2rem;">
+    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+      <div>
+        <p style="font-size:0.75rem; color:var(--muted); margin-bottom:0.2rem; font-weight:600;">
+          BUG #{{ bug.id }}
+        </p>
+        <h1 style="font-size:clamp(1.5rem,4vw,2.25rem); margin-bottom:0.5rem;">{{ bug.title }}</h1>
+        <p style="font-size:0.83rem; color:var(--muted); margin:0;">
+          Reported by <strong>{{ bug.creator.username }}</strong>
+          on {{ bug.created_at.strftime('%d %b %Y at %H:%M') }}
+          {% if bug.updated_at and bug.updated_at != bug.created_at %}
+            · Updated {{ bug.updated_at.strftime('%d %b %Y') }}
+          {% endif %}
+        </p>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <span style="padding:0.35rem 0.9rem; border-radius:999px; font-size:0.78rem; font-weight:700;
+                     background:{{ priority_colors[bug.priority] }}22; color:{{ priority_colors[bug.priority] }};">
+          {{ bug.priority }}
+        </span>
+        <span style="padding:0.35rem 0.9rem; border-radius:999px; font-size:0.78rem; font-weight:700;
+                     background:{{ status_colors[bug.status] }}22; color:{{ status_colors[bug.status] }};">
+          {{ bug.status }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- Left: description -->
+    <div class="col-md-8">
+      <div style="background:#fff; border:1.5px solid var(--border); border-radius:14px;
+                  padding:1.5rem; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:1.5rem;">
+        <p style="font-size:0.7rem; font-weight:600; letter-spacing:0.1em;
+                  text-transform:uppercase; color:var(--muted); margin-bottom:0.75rem;">
+          Description
+        </p>
+        <p style="font-size:0.95rem; line-height:1.7; white-space:pre-wrap; margin:0;">{{ bug.description }}</p>
+      </div>
+    </div>
+
+    <!-- Right: actions -->
+    <div class="col-md-4">
+
+      <!-- Update status -->
+      <div style="background:#fff; border:1.5px solid var(--border); border-radius:14px;
+                  padding:1.25rem; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:1rem;">
+        <p style="font-size:0.7rem; font-weight:600; letter-spacing:0.1em;
+                  text-transform:uppercase; color:var(--muted); margin-bottom:0.85rem;">
+          Update Status
+        </p>
+        <form method="POST" action="{{ url_for('update_status', bug_id=bug.id) }}">
+          <select name="status" class="form-select mb-2"
+                  style="border-radius:9px; border:1.5px solid var(--border);
+                         font-family:'DM Sans',sans-serif; font-size:0.88rem;">
+            {% for s in statuses %}
+              <option value="{{ s }}" {{ 'selected' if bug.status == s }}>{{ s }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit"
+            style="width:100%; background:var(--ink); color:var(--cream); border:none;
+                   border-radius:9px; padding:0.55rem; font-weight:600; font-size:0.85rem;
+                   font-family:'DM Sans',sans-serif; cursor:pointer; transition:opacity 0.18s;"
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'">
+            Update
+          </button>
+        </form>
+      </div>
+
+      <!-- Assign user -->
+      <div style="background:#fff; border:1.5px solid var(--border); border-radius:14px;
+                  padding:1.25rem; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:1rem;">
+        <p style="font-size:0.7rem; font-weight:600; letter-spacing:0.1em;
+                  text-transform:uppercase; color:var(--muted); margin-bottom:0.85rem;">
+          Assigned To
+        </p>
+        <form method="POST" action="{{ url_for('assign_bug', bug_id=bug.id) }}">
+          <select name="user_id" class="form-select mb-2"
+                  style="border-radius:9px; border:1.5px solid var(--border);
+                         font-family:'DM Sans',sans-serif; font-size:0.88rem;">
+            <option value="">— Unassigned —</option>
+            {% for user in users %}
+              <option value="{{ user.id }}" {{ 'selected' if bug.assigned_to == user.id }}>
+                {{ user.username }}
+              </option>
+            {% endfor %}
+          </select>
+          <button type="submit"
+            style="width:100%; background:#fff; color:var(--ink);
+                   border:1.5px solid var(--border); border-radius:9px; padding:0.55rem;
+                   font-weight:600; font-size:0.85rem; font-family:'DM Sans',sans-serif;
+                   cursor:pointer; transition:border-color 0.18s;"
+            onmouseover="this.style.borderColor='var(--ink)'"
+            onmouseout="this.style.borderColor='var(--border)'">
+            Assign
+          </button>
+        </form>
+      </div>
+
+      <!-- Meta info -->
+      <div style="background:#fff; border:1.5px solid var(--border); border-radius:14px;
+                  padding:1.25rem; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+        <p style="font-size:0.7rem; font-weight:600; letter-spacing:0.1em;
+                  text-transform:uppercase; color:var(--muted); margin-bottom:0.85rem;">
+          Details
+        </p>
+        {% for label, value in [
+            ('Reporter',   bug.creator.username),
+            ('Assignee',   bug.assignee.username if bug.assignee else '—'),
+            ('Priority',   bug.priority),
+            ('Created',    bug.created_at.strftime('%d %b %Y')),
+        ] %}
+        <div style="display:flex; justify-content:space-between; align-items:center;
+                    padding:0.4rem 0; border-bottom:1px solid var(--border); font-size:0.85rem;">
+          <span style="color:var(--muted);">{{ label }}</span>
+          <span style="font-weight:500;">{{ value }}</span>
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %} 

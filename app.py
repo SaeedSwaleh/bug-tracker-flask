@@ -3,12 +3,13 @@ from flask_login import (
     LoginManager, login_user, logout_user,
     login_required, current_user
 )
-from models import db, User
+from datetime import datetime
+from models import db, User, Bug
 
 app = Flask(__name__)
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-app.config["SECRET_KEY"]          = "change-this-before-going-to-production"
+app.config["SECRET_KEY"]                     = "change-this-before-going-to-production"
 app.config["SQLALCHEMY_DATABASE_URI"]        = "sqlite:///bugtracker.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -16,8 +17,8 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
 login_manager = LoginManager(app)
-login_manager.login_view     = "login"        # redirect here if @login_required fails
-login_manager.login_message  = "Please log in to access that page."
+login_manager.login_view             = "login"
+login_manager.login_message          = "Please log in to access that page."
 login_manager.login_message_category = "warning"
 
 
@@ -26,12 +27,11 @@ def load_user(user_id: str):
     return User.query.get(int(user_id))
 
 
-# ── Create tables on first run ─────────────────────────────────────────────────
 with app.app_context():
     db.create_all()
 
 
-# ── Routes ─────────────────────────────────────────────────────────────────────
+# ── Auth routes ────────────────────────────────────────────────────────────────
 
 @app.route("/")
 def home():
@@ -42,7 +42,6 @@ def home():
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
-    # Already logged in — nothing to do here
     if current_user.is_authenticated:
         return redirect(url_for("dashboard"))
 
@@ -52,7 +51,6 @@ def signup():
         password = request.form.get("password", "")
         confirm  = request.form.get("confirm",  "")
 
-        # ── Validation ─────────────────────────────────────────────────────────
         error = None
         if not username or not email or not password:
             error = "All fields are required."
@@ -69,16 +67,13 @@ def signup():
 
         if error:
             flash(error, "danger")
-            return render_template("signup.html",
-                                   username=username, email=email)
+            return render_template("signup.html", username=username, email=email)
 
-        # ── Create user ────────────────────────────────────────────────────────
         user = User(username=username, email=email)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
 
-        # Auto-login after signup
         login_user(user)
         flash(f"Welcome, {user.username}! Your account has been created.", "success")
         return redirect(url_for("dashboard"))
@@ -92,11 +87,10 @@ def login():
         return redirect(url_for("dashboard"))
 
     if request.method == "POST":
-        identifier = request.form.get("identifier", "").strip()  # username or email
+        identifier = request.form.get("identifier", "").strip()
         password   = request.form.get("password",   "")
         remember   = request.form.get("remember") == "on"
 
-        # Look up by username first, then email
         user = (
             User.query.filter_by(username=identifier).first() or
             User.query.filter_by(email=identifier.lower()).first()
@@ -108,8 +102,6 @@ def login():
 
         login_user(user, remember=remember)
         flash(f"Welcome back, {user.username}!", "success")
-
-        # Honour ?next= redirect (set by Flask-Login when bouncing to /login)
         next_page = request.args.get("next")
         return redirect(next_page or url_for("dashboard"))
 
@@ -124,10 +116,139 @@ def logout():
     return redirect(url_for("login"))
 
 
+# ── Dashboard ──────────────────────────────────────────────────────────────────
+
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    return render_template("dashboard.html")
+    open_count        = Bug.query.filter_by(status="Open").count()
+    in_progress_count = Bug.query.filter_by(status="In Progress").count()
+    closed_count      = Bug.query.filter_by(status="Closed").count()
+    total_count       = Bug.query.count()
+    recent_bugs       = (Bug.query
+                         .order_by(Bug.created_at.desc())
+                         .limit(5)
+                         .all())
+
+    return render_template("dashboard.html",
+                           open_count=open_count,
+                           in_progress_count=in_progress_count,
+                           closed_count=closed_count,
+                           total_count=total_count,
+                           recent_bugs=recent_bugs)
+
+
+# ── Bug routes ─────────────────────────────────────────────────────────────────
+
+@app.route("/bugs")
+@login_required
+def bugs():
+    # Optional filters from query string  e.g. /bugs?status=Open&priority=High
+    status_filter   = request.args.get("status",   "")
+    priority_filter = request.args.get("priority", "")
+
+    query = Bug.query
+    if status_filter   in Bug.STATUSES:
+        query = query.filter_by(status=status_filter)
+    if priority_filter in Bug.PRIORITIES:
+        query = query.filter_by(priority=priority_filter)
+
+    all_bugs = query.order_by(Bug.created_at.desc()).all()
+
+    return render_template("bugs.html",
+                           bugs=all_bugs,
+                           status_filter=status_filter,
+                           priority_filter=priority_filter,
+                           statuses=Bug.STATUSES,
+                           priorities=Bug.PRIORITIES)
+
+
+@app.route("/bugs/create", methods=["GET", "POST"])
+@login_required
+def create_bug():
+    if request.method == "POST":
+        title       = request.form.get("title",       "").strip()
+        description = request.form.get("description", "").strip()
+        priority    = request.form.get("priority",    "Medium")
+
+        error = None
+        if not title:
+            error = "Title is required."
+        elif not description:
+            error = "Description is required."
+        elif priority not in Bug.PRIORITIES:
+            error = "Invalid priority."
+
+        if error:
+            flash(error, "danger")
+            return render_template("create_bug.html",
+                                   priorities=Bug.PRIORITIES,
+                                   form=request.form)
+
+        bug = Bug(
+            title       = title,
+            description = description,
+            priority    = priority,
+            status      = "Open",
+            created_by  = current_user.id,
+        )
+        db.session.add(bug)
+        db.session.commit()
+
+        flash(f"Bug #{bug.id} created successfully.", "success")
+        return redirect(url_for("bug_detail", bug_id=bug.id))
+
+    return render_template("create_bug.html", priorities=Bug.PRIORITIES, form={})
+
+
+@app.route("/bugs/<int:bug_id>")
+@login_required
+def bug_detail(bug_id):
+    bug   = Bug.query.get_or_404(bug_id)
+    users = User.query.order_by(User.username).all()
+    return render_template("bug_detail.html",
+                           bug=bug,
+                           users=users,
+                           statuses=Bug.STATUSES,
+                           priorities=Bug.PRIORITIES)
+
+
+@app.route("/bugs/<int:bug_id>/assign", methods=["POST"])
+@login_required
+def assign_bug(bug_id):
+    bug     = Bug.query.get_or_404(bug_id)
+    user_id = request.form.get("user_id", "")
+
+    if user_id == "":
+        bug.assigned_to = None          # unassign
+    else:
+        user = User.query.get(int(user_id))
+        if not user:
+            flash("User not found.", "danger")
+            return redirect(url_for("bug_detail", bug_id=bug_id))
+        bug.assigned_to = user.id
+
+    bug.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash("Bug assignment updated.", "success")
+    return redirect(url_for("bug_detail", bug_id=bug_id))
+
+
+@app.route("/bugs/<int:bug_id>/status", methods=["POST"])
+@login_required
+def update_status(bug_id):
+    bug        = Bug.query.get_or_404(bug_id)
+    new_status = request.form.get("status", "")
+
+    if new_status not in Bug.STATUSES:
+        flash("Invalid status.", "danger")
+        return redirect(url_for("bug_detail", bug_id=bug_id))
+
+    bug.status     = new_status
+    bug.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash(f"Status updated to '{new_status}'.", "success")
+    return redirect(url_for("bug_detail", bug_id=bug_id))
 
 
 if __name__ == "__main__":

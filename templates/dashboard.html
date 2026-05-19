@@ -2,50 +2,102 @@
 {% block title %}Dashboard — Bug Tracker{% endblock %}
 
 {% block content %}
-<div class="container py-5" style="max-width: 720px;">
+<div class="container py-5" style="max-width: 800px;">
 
-  <!-- Welcome banner -->
+  <!-- Header -->
   <div style="border-bottom: 2px solid var(--ink); padding-bottom: 1.25rem; margin-bottom: 2rem;">
-    <h1 class="mb-1">Dashboard</h1>
-    <p class="text-muted mb-0" style="font-size: 0.9rem;">
-      Logged in as <strong>{{ current_user.username }}</strong>
-      &nbsp;·&nbsp;
-      Member since {{ current_user.created_at.strftime('%B %Y') }}
-    </p>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="mb-1">Dashboard</h1>
+        <p class="text-muted mb-0" style="font-size: 0.88rem;">
+          Logged in as <strong>{{ current_user.username }}</strong>
+          &nbsp;·&nbsp; Member since {{ current_user.created_at.strftime('%B %Y') }}
+        </p>
+      </div>
+      <a href="{{ url_for('create_bug') }}"
+         style="background:var(--ink); color:var(--cream); border:none; border-radius:10px;
+                padding:0.55rem 1.2rem; font-weight:600; font-size:0.88rem;
+                text-decoration:none; white-space:nowrap;">
+        <i class="bi bi-plus-lg me-1"></i>New Bug
+      </a>
+    </div>
   </div>
 
-  <!-- Placeholder stat cards -->
+  <!-- Stat cards -->
   <div class="row g-3 mb-4">
-    {% for label, icon, value, color in [
-        ('Open Bugs',     'bug',          0, '#c0392b'),
-        ('In Progress',   'arrow-repeat', 0, '#f5a623'),
-        ('Resolved',      'check-circle', 0, '#2d8a50'),
-        ('Total Reports', 'clipboard',    0, '#4a90d9'),
+    {% for label, icon, value, color, status_val in [
+        ('Open',        'bug',          open_count,        '#c0392b', 'Open'),
+        ('In Progress', 'arrow-repeat', in_progress_count, '#f5a623', 'In Progress'),
+        ('Closed',      'check-circle', closed_count,      '#2d8a50', 'Closed'),
+        ('Total',       'clipboard',    total_count,       '#4a90d9', ''),
     ] %}
     <div class="col-6 col-md-3">
-      <div style="background:#fff; border:1.5px solid var(--border); border-radius:14px;
-                  padding:1.25rem 1rem; text-align:center;
-                  box-shadow:0 2px 10px rgba(0,0,0,0.05);">
-        <i class="bi bi-{{ icon }}" style="font-size:1.5rem; color:{{ color }};"></i>
-        <div style="font-size:1.75rem; font-weight:700; margin:0.25rem 0; font-family:'DM Serif Display',serif;">
-          {{ value }}
+      <a href="{{ url_for('bugs', status=status_val) }}" style="text-decoration:none;">
+        <div style="background:#fff; border:1.5px solid var(--border); border-radius:14px;
+                    padding:1.25rem 1rem; text-align:center;
+                    box-shadow:0 2px 10px rgba(0,0,0,0.05);
+                    transition:transform 0.15s, box-shadow 0.15s;"
+             onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 18px rgba(0,0,0,0.1)'"
+             onmouseout="this.style.transform='';this.style.boxShadow='0 2px 10px rgba(0,0,0,0.05)'">
+          <i class="bi bi-{{ icon }}" style="font-size:1.5rem; color:{{ color }};"></i>
+          <div style="font-size:2rem; font-weight:700; margin:0.2rem 0;
+                      font-family:'DM Serif Display',serif; color:var(--ink);">
+            {{ value }}
+          </div>
+          <div style="font-size:0.72rem; color:var(--muted); font-weight:600;
+                      text-transform:uppercase; letter-spacing:0.07em;">
+            {{ label }}
+          </div>
         </div>
-        <div style="font-size:0.75rem; color:var(--muted); font-weight:600;
-                    text-transform:uppercase; letter-spacing:0.06em;">
-          {{ label }}
-        </div>
-      </div>
+      </a>
     </div>
     {% endfor %}
   </div>
 
-  <!-- Next steps placeholder -->
-  <div style="background:#fff; border:1.5px dashed var(--border); border-radius:14px;
-              padding:2rem; text-align:center; color:var(--muted);">
-    <i class="bi bi-hammer" style="font-size:2rem; display:block; margin-bottom:0.5rem; opacity:0.4;"></i>
-    <p class="mb-0" style="font-size:0.9rem;">
-      Bug reporting and project features coming soon.
-    </p>
+  <!-- Recent bugs -->
+  <div style="background:#fff; border:1.5px solid var(--border); border-radius:16px;
+              box-shadow:0 2px 10px rgba(0,0,0,0.05); overflow:hidden;">
+    <div style="padding:1.1rem 1.5rem; border-bottom:1.5px solid var(--border);
+                display:flex; align-items:center; justify-content:space-between;">
+      <span style="font-weight:600; font-size:0.95rem;">Recent Bugs</span>
+      <a href="{{ url_for('bugs') }}"
+         style="font-size:0.8rem; color:var(--muted); text-decoration:none; font-weight:500;">
+        View all <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+
+    {% if recent_bugs %}
+      {% for bug in recent_bugs %}
+        {% set priority_colors = {'Low': '#4a90d9', 'Medium': '#f5a623', 'High': '#c0392b'} %}
+        {% set status_colors   = {'Open': '#c0392b', 'In Progress': '#f5a623', 'Closed': '#2d8a50'} %}
+        <a href="{{ url_for('bug_detail', bug_id=bug.id) }}"
+           style="display:flex; align-items:center; gap:1rem; padding:0.9rem 1.5rem;
+                  border-bottom:1px solid var(--border); text-decoration:none; color:var(--ink);
+                  transition:background 0.15s;"
+           onmouseover="this.style.background='var(--cream)'"
+           onmouseout="this.style.background=''">
+          <span style="font-size:0.75rem; color:var(--muted); white-space:nowrap;">#{{ bug.id }}</span>
+          <span style="flex:1; font-weight:500; font-size:0.92rem;">{{ bug.title }}</span>
+          <span style="font-size:0.72rem; font-weight:600; padding:0.2rem 0.6rem;
+                       border-radius:999px; background:{{ priority_colors[bug.priority] }}22;
+                       color:{{ priority_colors[bug.priority] }}; white-space:nowrap;">
+            {{ bug.priority }}
+          </span>
+          <span style="font-size:0.72rem; font-weight:600; padding:0.2rem 0.6rem;
+                       border-radius:999px; background:{{ status_colors[bug.status] }}22;
+                       color:{{ status_colors[bug.status] }}; white-space:nowrap;">
+            {{ bug.status }}
+          </span>
+        </a>
+      {% endfor %}
+    {% else %}
+      <div style="padding:2.5rem; text-align:center; color:var(--muted);">
+        <i class="bi bi-bug" style="font-size:2rem; display:block; margin-bottom:0.5rem; opacity:0.35;"></i>
+        <p class="mb-0" style="font-size:0.88rem;">No bugs yet.
+          <a href="{{ url_for('create_bug') }}" style="color:var(--ink); font-weight:600;">Create the first one.</a>
+        </p>
+      </div>
+    {% endif %}
   </div>
 
 </div>

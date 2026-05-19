@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}New Bug — Bug Tracker{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 580px;">
+
+  <div style="border-bottom:2px solid var(--ink); padding-bottom:1.1rem; margin-bottom:2rem;">
+    <a href="{{ url_for('bugs') }}"
+       style="font-size:0.82rem; color:var(--muted); text-decoration:none;">
+      <i class="bi bi-arrow-left me-1"></i>Back to bugs
+    </a>
+    <h1 class="mb-0 mt-2">Report a Bug</h1>
+  </div>
+
+  <div style="background:#fff; border:1.5px solid var(--border); border-radius:16px;
+              padding:2rem; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST" action="{{ url_for('create_bug') }}" novalidate>
+
+      <!-- Title -->
+      <div class="mb-3">
+        <label for="title" style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:0.4rem;">
+          Title <span style="color:var(--red);">*</span>
+        </label>
+        <input
+          type="text" id="title" name="title"
+          class="form-control"
+          value="{{ form.get('title', '') }}"
+          placeholder="Short, descriptive title"
+          maxlength="200" required
+          style="border-radius:10px; border:1.5px solid var(--border); background:var(--cream);
+                 font-family:'DM Sans',sans-serif; padding:0.65rem 1rem;"
+        />
+      </div>
+
+      <!-- Description -->
+      <div class="mb-3">
+        <label for="description" style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:0.4rem;">
+          Description <span style="color:var(--red);">*</span>
+        </label>
+        <textarea
+          id="description" name="description"
+          class="form-control"
+          rows="5"
+          placeholder="Steps to reproduce, expected vs actual behaviour, environment…"
+          required
+          style="border-radius:10px; border:1.5px solid var(--border); background:var(--cream);
+                 font-family:'DM Sans',sans-serif; padding:0.65rem 1rem; resize:vertical;"
+        >{{ form.get('description', '') }}</textarea>
+      </div>
+
+      <!-- Priority -->
+      <div class="mb-4">
+        <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:0.5rem;">Priority</label>
+        <div class="d-flex gap-2">
+          {% set pcolors = {'Low':'#4a90d9','Medium':'#f5a623','High':'#c0392b'} %}
+          {% for p in priorities %}
+          <label style="flex:1; cursor:pointer;">
+            <input type="radio" name="priority" value="{{ p }}"
+                   style="display:none;"
+                   {{ 'checked' if form.get('priority', 'Medium') == p }}
+                   onchange="updatePriority(this)" />
+            <span id="pill-{{ p }}"
+                  style="display:block; text-align:center; padding:0.45rem 0;
+                         border-radius:999px; font-size:0.82rem; font-weight:600;
+                         border:1.5px solid {{ pcolors[p] }};
+                         background:{{ pcolors[p] + '22' if form.get('priority','Medium') == p else '#fff' }};
+                         color:{{ pcolors[p] }};
+                         transition:background 0.18s;">
+              {{ p }}
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <button type="submit"
+        style="width:100%; background:var(--ink); color:var(--cream); border:none;
+               border-radius:10px; padding:0.7rem; font-weight:600; font-size:0.95rem;
+               font-family:'DM Sans',sans-serif; cursor:pointer; transition:opacity 0.18s;"
+        onmouseover="this.style.opacity='0.82'"
+        onmouseout="this.style.opacity='1'">
+        <i class="bi bi-bug me-2"></i>Submit Bug Report
+      </button>
+    </form>
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+  const pcolors = { Low: '#4a90d9', Medium: '#f5a623', High: '#c0392b' };
+
+  function updatePriority(radio) {
+    ['Low', 'Medium', 'High'].forEach(p => {
+      const pill = document.getElementById('pill-' + p);
+      if (p === radio.value) {
+        pill.style.background = pcolors[p] + '33';
+      } else {
+        pill.style.background = '#fff';
+      }
+    });
+  }
+</script>
+{% endblock %}
+{% endblock %} 

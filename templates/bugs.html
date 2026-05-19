@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}All Bugs — Bug Tracker{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 900px;">
+
+  <!-- Header -->
+  <div style="border-bottom:2px solid var(--ink); padding-bottom:1.25rem; margin-bottom:2rem;"
+       class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h1 class="mb-0">All Bugs</h1>
+    <a href="{{ url_for('create_bug') }}"
+       style="background:var(--ink); color:var(--cream); border:none; border-radius:10px;
+              padding:0.55rem 1.2rem; font-weight:600; font-size:0.88rem; text-decoration:none;">
+      <i class="bi bi-plus-lg me-1"></i>New Bug
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{{ url_for('bugs') }}"
+       style="font-size:0.8rem; font-weight:600; padding:0.3rem 0.85rem; border-radius:999px;
+              text-decoration:none;
+              background:{{ 'var(--ink)' if not status_filter and not priority_filter else '#fff' }};
+              color:{{ 'var(--cream)' if not status_filter and not priority_filter else 'var(--muted)' }};
+              border:1.5px solid {{ 'var(--ink)' if not status_filter and not priority_filter else 'var(--border)' }};">
+      All
+    </a>
+    {% for s in statuses %}
+    <a href="{{ url_for('bugs', status=s, priority=priority_filter) }}"
+       style="font-size:0.8rem; font-weight:600; padding:0.3rem 0.85rem; border-radius:999px;
+              text-decoration:none;
+              background:{{ 'var(--ink)' if status_filter == s else '#fff' }};
+              color:{{ 'var(--cream)' if status_filter == s else 'var(--muted)' }};
+              border:1.5px solid {{ 'var(--ink)' if status_filter == s else 'var(--border)' }};">
+      {{ s }}
+    </a>
+    {% endfor %}
+    <span style="color:var(--border); margin:0 0.25rem;">|</span>
+    {% for p in priorities %}
+    {% set pcolors = {'Low':'#4a90d9','Medium':'#f5a623','High':'#c0392b'} %}
+    <a href="{{ url_for('bugs', status=status_filter, priority=p) }}"
+       style="font-size:0.8rem; font-weight:600; padding:0.3rem 0.85rem; border-radius:999px;
+              text-decoration:none;
+              background:{{ pcolors[p] if priority_filter == p else '#fff' }};
+              color:{{ '#fff' if priority_filter == p else pcolors[p] }};
+              border:1.5px solid {{ pcolors[p] }};">
+      {{ p }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Bug table -->
+  {% if bugs %}
+  <div style="background:#fff; border:1.5px solid var(--border); border-radius:16px;
+              overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+    <!-- Table header -->
+    <div style="display:grid; grid-template-columns:3rem 1fr 7rem 8rem 8rem;
+                padding:0.75rem 1.25rem; border-bottom:1.5px solid var(--border);
+                font-size:0.7rem; font-weight:600; letter-spacing:0.1em;
+                text-transform:uppercase; color:var(--muted);">
+      <span>#</span>
+      <span>Title</span>
+      <span>Priority</span>
+      <span>Status</span>
+      <span>Assigned to</span>
+    </div>
+
+    {% for bug in bugs %}
+      {% set priority_colors = {'Low':'#4a90d9','Medium':'#f5a623','High':'#c0392b'} %}
+      {% set status_colors   = {'Open':'#c0392b','In Progress':'#f5a623','Closed':'#2d8a50'} %}
+      <a href="{{ url_for('bug_detail', bug_id=bug.id) }}"
+         style="display:grid; grid-template-columns:3rem 1fr 7rem 8rem 8rem;
+                align-items:center; padding:0.9rem 1.25rem;
+                border-bottom:1px solid var(--border); text-decoration:none; color:var(--ink);
+                transition:background 0.15s;"
+         onmouseover="this.style.background='var(--cream)'"
+         onmouseout="this.style.background=''">
+        <span style="font-size:0.78rem; color:var(--muted);">{{ bug.id }}</span>
+        <span style="font-weight:500; font-size:0.92rem; padding-right:1rem;">{{ bug.title }}</span>
+        <span>
+          <span style="font-size:0.72rem; font-weight:700; padding:0.2rem 0.65rem;
+                       border-radius:999px; background:{{ priority_colors[bug.priority] }}22;
+                       color:{{ priority_colors[bug.priority] }};">
+            {{ bug.priority }}
+          </span>
+        </span>
+        <span>
+          <span style="font-size:0.72rem; font-weight:700; padding:0.2rem 0.65rem;
+                       border-radius:999px; background:{{ status_colors[bug.status] }}22;
+                       color:{{ status_colors[bug.status] }};">
+            {{ bug.status }}
+          </span>
+        </span>
+        <span style="font-size:0.83rem; color:var(--muted);">
+          {{ bug.assignee.username if bug.assignee else '—' }}
+        </span>
+      </a>
+    {% endfor %}
+  </div>
+
+  <p style="font-size:0.8rem; color:var(--muted); margin-top:0.75rem; text-align:right;">
+    {{ bugs|length }} bug{{ 's' if bugs|length != 1 }}
+  </p>
+
+  {% else %}
+  <div style="background:#fff; border:1.5px dashed var(--border); border-radius:14px;
+              padding:3rem; text-align:center; color:var(--muted);">
+    <i class="bi bi-funnel" style="font-size:2rem; display:block; margin-bottom:0.5rem; opacity:0.35;"></i>
+    <p class="mb-0" style="font-size:0.9rem;">No bugs match these filters.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
