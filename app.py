@@ -5,12 +5,37 @@ from flask_login import (
 )
 from datetime import datetime
 from models import db, User, Bug, Comment
+import os
 
 app = Flask(__name__)
 
-# ── Config ─────────────────────────────────────────────────────────────────────
-app.config["SECRET_KEY"]                     = "change-this-before-going-to-production"
-app.config["SQLALCHEMY_DATABASE_URI"]        = "sqlite:///bugtracker.db"
+# ── Database config ────────────────────────────────────────────────────────────
+DB_HOST     = os.environ.get("DB_HOST",     "bugtrackerdb.cxkgacmis1xf.eu-north-1.rds.amazonaws.com")
+DB_PORT     = os.environ.get("DB_PORT",     "5432")
+DB_NAME     = os.environ.get("DB_NAME",     "bugtrackerdb")
+DB_USER     = os.environ.get("DB_USER",     "bugtracker_admin")
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "BugTrack#2025!Xr9mPq")
+
+# SSL certificate path — download with:
+# curl -o global-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+SSL_CERT = os.environ.get("SSL_CERT", "./global-bundle.pem")
+
+# Build the connection URL with SSL
+if os.path.exists(SSL_CERT):
+    DATABASE_URL = (
+        f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        f"?sslmode=verify-full&sslrootcert={SSL_CERT}"
+    )
+    print("✓ Using PostgreSQL with SSL")
+else:
+    DATABASE_URL = (
+        f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        f"?sslmode=require"
+    )
+    print("⚠ SSL cert not found — using sslmode=require (less strict)")
+
+app.config["SECRET_KEY"]                     = os.environ.get("SECRET_KEY", "change-this-before-going-to-production")
+app.config["SQLALCHEMY_DATABASE_URI"]        = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # ── Extensions ─────────────────────────────────────────────────────────────────
@@ -29,6 +54,7 @@ def load_user(user_id: str):
 
 with app.app_context():
     db.create_all()
+    print("✓ Tables ready")
 
 
 # ── Auth routes ────────────────────────────────────────────────────────────────
@@ -215,12 +241,10 @@ def create_bug():
 def bug_detail(bug_id):
     bug      = Bug.query.get_or_404(bug_id)
     users    = User.query.order_by(User.username).all()
-    # Oldest first so the thread reads chronologically
     comments = (Comment.query
                 .filter_by(bug_id=bug_id)
                 .order_by(Comment.created_at.asc())
                 .all())
-
     return render_template("bug_detail.html",
                            bug=bug,
                            users=users,
@@ -287,7 +311,6 @@ def add_comment(bug_id):
     if not content:
         flash("Comment can't be empty.", "danger")
         return redirect(url_for("bug_detail", bug_id=bug_id))
-
     if len(content) > 2000:
         flash("Comment must be under 2000 characters.", "danger")
         return redirect(url_for("bug_detail", bug_id=bug_id))
@@ -298,11 +321,9 @@ def add_comment(bug_id):
         bug_id    = bug.id,
     )
     db.session.add(comment)
-    # Bump the bug's updated_at so it surfaces in activity sorting
     bug.updated_at = datetime.utcnow()
     db.session.commit()
     flash("Comment added.", "success")
-    # Redirect to the comment anchor so the page scrolls to the thread
     return redirect(url_for("bug_detail", bug_id=bug_id) + "#comments")
 
 
@@ -312,7 +333,6 @@ def delete_comment(comment_id):
     comment = Comment.query.get_or_404(comment_id)
     bug_id  = comment.bug_id
 
-    # Only the comment author can delete their own comment
     if comment.author_id != current_user.id:
         flash("You can only delete your own comments.", "danger")
         return redirect(url_for("bug_detail", bug_id=bug_id))
