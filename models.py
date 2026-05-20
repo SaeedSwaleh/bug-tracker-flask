@@ -20,6 +20,7 @@ class User(UserMixin, db.Model):
                                     backref="creator",  lazy="dynamic")
     bugs_assigned = db.relationship("Bug", foreign_keys="Bug.assigned_to",
                                     backref="assignee", lazy="dynamic")
+    comments      = db.relationship("Comment", backref="author", lazy="dynamic")
 
     def set_password(self, plain_text: str) -> None:
         salt               = os.urandom(16).hex()
@@ -55,5 +56,22 @@ class Bug(db.Model):
     updated_at  = db.Column(db.DateTime, default=datetime.utcnow,
                             onupdate=datetime.utcnow)
 
+    # One bug → many comments; deleting a bug cascades to its comments
+    comments    = db.relationship("Comment", backref="bug",
+                                  lazy="dynamic", cascade="all, delete-orphan")
+
     def __repr__(self) -> str:
-        return f"<Bug id={self.id} title={self.title!r} status={self.status!r}>" 
+        return f"<Bug id={self.id} title={self.title!r} status={self.status!r}>"
+
+
+class Comment(db.Model):
+    __tablename__ = "comments"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    content    = db.Column(db.Text,    nullable=False)
+    author_id  = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    bug_id     = db.Column(db.Integer, db.ForeignKey("bugs.id"),   nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<Comment id={self.id} bug_id={self.bug_id} author_id={self.author_id}>"

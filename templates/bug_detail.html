@@ -5,7 +5,7 @@
 {% set pc = {'Low':'#4a90d9','Medium':'#f5a623','High':'#c0392b'} %}
 {% set sc = {'Open':'#c0392b','In Progress':'#f5a623','Closed':'#2d8a50'} %}
 
-<div class="container py-5" style="max-width: 820px;">
+<div class="container py-5" style="max-width: 860px;">
 
   <a href="{{ url_for('bugs') }}"
      style="font-size:0.82rem; color:var(--muted); text-decoration:none;">
@@ -43,8 +43,10 @@
 
   <div class="row g-4">
 
-    <!-- Left: description -->
-    <div class="col-md-7">
+    <!-- ── Left column: description + comments ──────────────────── -->
+    <div class="col-md-7 d-flex flex-column gap-4">
+
+      <!-- Description -->
       <div style="background:#fff; border:1.5px solid var(--border); border-radius:14px;
                   padding:1.5rem; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
         <p style="font-size:0.68rem; font-weight:600; letter-spacing:0.1em;
@@ -55,21 +57,145 @@
           {{ bug.description }}
         </p>
       </div>
+
+      <!-- ── Comment thread ──────────────────────────────────────── -->
+      <div id="comments">
+
+        <!-- Thread header -->
+        <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:1rem;">
+          <p style="font-size:0.68rem; font-weight:600; letter-spacing:0.1em;
+                    text-transform:uppercase; color:var(--muted); margin:0;">
+            Comments
+          </p>
+          {% if comments %}
+          <span style="font-size:0.7rem; font-weight:700; padding:0.15rem 0.6rem;
+                       border-radius:999px; background:var(--ink); color:var(--cream);">
+            {{ comments|length }}
+          </span>
+          {% endif %}
+        </div>
+
+        <!-- Individual comments -->
+        {% if comments %}
+          <div style="display:flex; flex-direction:column; gap:0.75rem; margin-bottom:1.25rem;">
+            {% for comment in comments %}
+            <div id="comment-{{ comment.id }}"
+                 style="background:#fff; border:1.5px solid var(--border); border-radius:12px;
+                        padding:1rem 1.15rem; box-shadow:0 1px 6px rgba(0,0,0,0.04);
+                        {% if comment.author_id == current_user.id %}
+                          border-left:4px solid #8e44ad;
+                        {% endif %}">
+
+              <!-- Comment meta row -->
+              <div style="display:flex; align-items:center; justify-content:space-between;
+                          gap:0.5rem; margin-bottom:0.6rem; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                  <!-- Avatar initial -->
+                  <div style="width:1.75rem; height:1.75rem; border-radius:50%; flex-shrink:0;
+                               display:flex; align-items:center; justify-content:center;
+                               font-size:0.72rem; font-weight:700; color:#fff;
+                               background:{% if comment.author_id == current_user.id %}#8e44ad{% else %}#4a90d9{% endif %};">
+                    {{ comment.author.username[0].upper() }}
+                  </div>
+                  <span style="font-weight:600; font-size:0.87rem;">
+                    {{ comment.author.username }}
+                    {% if comment.author_id == current_user.id %}
+                      <span style="font-size:0.7rem; color:#8e44ad; font-weight:600;">(you)</span>
+                    {% endif %}
+                  </span>
+                  <span style="font-size:0.75rem; color:var(--muted);">
+                    · {{ comment.created_at.strftime('%d %b %Y at %H:%M') }}
+                  </span>
+                </div>
+
+                <!-- Delete — only shown to the comment author -->
+                {% if comment.author_id == current_user.id %}
+                <form method="POST"
+                      action="{{ url_for('delete_comment', comment_id=comment.id) }}"
+                      onsubmit="return confirm('Delete this comment?')">
+                  <button type="submit"
+                    style="background:none; border:none; cursor:pointer; padding:0.1rem 0.3rem;
+                           font-size:0.78rem; color:var(--muted); border-radius:6px;
+                           transition:color 0.15s, background 0.15s;"
+                    onmouseover="this.style.color='var(--red)';this.style.background='#fdecea'"
+                    onmouseout="this.style.color='var(--muted)';this.style.background='none'"
+                    title="Delete comment">
+                    <i class="bi bi-trash3"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+
+              <!-- Comment body -->
+              <p style="font-size:0.91rem; line-height:1.65; white-space:pre-wrap;
+                        margin:0; color:var(--ink);">
+                {{ comment.content }}
+              </p>
+            </div>
+            {% endfor %}
+          </div>
+
+        {% else %}
+          <div style="text-align:center; padding:1.75rem 1rem; border:1.5px dashed var(--border);
+                      border-radius:12px; color:var(--muted); margin-bottom:1.25rem;">
+            <i class="bi bi-chat" style="font-size:1.5rem; display:block;
+                                          margin-bottom:0.4rem; opacity:0.4;"></i>
+            <p style="font-size:0.87rem; margin:0;">No comments yet. Be the first to add one.</p>
+          </div>
+        {% endif %}
+
+        <!-- Add comment form -->
+        <div style="background:#fff; border:1.5px solid var(--border); border-radius:14px;
+                    padding:1.25rem; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+          <p style="font-size:0.68rem; font-weight:600; letter-spacing:0.1em;
+                    text-transform:uppercase; color:var(--muted); margin-bottom:0.75rem;">
+            Add a comment
+          </p>
+          <form method="POST" action="{{ url_for('add_comment', bug_id=bug.id) }}">
+            <textarea
+              name="content"
+              rows="4"
+              placeholder="Share an update, ask a question, or leave a note…"
+              maxlength="2000"
+              required
+              style="width:100%; border-radius:10px; border:1.5px solid var(--border);
+                     background:var(--cream); font-family:'DM Sans',sans-serif;
+                     font-size:0.9rem; padding:0.65rem 0.9rem; resize:vertical;
+                     outline:none; transition:border-color 0.2s, box-shadow 0.2s; box-sizing:border-box;"
+              onfocus="this.style.borderColor='var(--ink)';this.style.boxShadow='0 0 0 3px rgba(26,26,24,0.08)'"
+              onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'"
+            ></textarea>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.65rem;">
+              <span style="font-size:0.75rem; color:var(--muted);">Max 2000 characters</span>
+              <button type="submit"
+                style="background:var(--ink); color:var(--cream); border:none;
+                       border-radius:9px; padding:0.5rem 1.2rem; font-weight:600;
+                       font-size:0.87rem; font-family:'DM Sans',sans-serif;
+                       cursor:pointer; transition:opacity 0.18s;"
+                onmouseover="this.style.opacity='0.82'"
+                onmouseout="this.style.opacity='1'">
+                <i class="bi bi-send me-1"></i>Post Comment
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+      <!-- /#comments -->
+
     </div>
 
-    <!-- Right: sidebar actions -->
+    <!-- ── Right column: sidebar (unchanged from previous step) ─── -->
     <div class="col-md-5 d-flex flex-column gap-3">
 
-      <!-- ── Assignment card ────────────────────────────────────── -->
+      <!-- Assignment card -->
       <div style="background:#fff; border:1.5px solid var(--border); border-radius:14px;
                   padding:1.25rem; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
-
         <p style="font-size:0.68rem; font-weight:600; letter-spacing:0.1em;
                   text-transform:uppercase; color:var(--muted); margin-bottom:0.9rem;">
           Assignment
         </p>
 
-        <!-- Current assignee display -->
         <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:1rem;
                     padding:0.65rem 0.85rem; border-radius:10px; background:var(--cream);
                     border:1.5px solid var(--border);">
@@ -90,7 +216,6 @@
           {% endif %}
         </div>
 
-        <!-- Assign to me button — only shown if not already assigned to current user -->
         {% if bug.assigned_to != current_user.id %}
         <form method="POST" action="{{ url_for('assign_to_me', bug_id=bug.id) }}" class="mb-2">
           <button type="submit"
@@ -105,7 +230,6 @@
         </form>
         {% endif %}
 
-        <!-- Reassign dropdown -->
         <form method="POST" action="{{ url_for('assign_bug', bug_id=bug.id) }}">
           <label style="font-size:0.75rem; font-weight:600; color:var(--muted);
                         display:block; margin-bottom:0.35rem;">
@@ -117,8 +241,7 @@
                            font-family:'DM Sans',sans-serif; font-size:0.85rem; flex:1;">
               <option value="">— Unassigned —</option>
               {% for user in users %}
-              <option value="{{ user.id }}"
-                      {{ 'selected' if bug.assigned_to == user.id }}>
+              <option value="{{ user.id }}" {{ 'selected' if bug.assigned_to == user.id }}>
                 {{ user.username }}{% if user.id == current_user.id %} (you){% endif %}
               </option>
               {% endfor %}
@@ -136,7 +259,7 @@
         </form>
       </div>
 
-      <!-- ── Status card ──────────────────────────────────────────── -->
+      <!-- Status card -->
       <div style="background:#fff; border:1.5px solid var(--border); border-radius:14px;
                   padding:1.25rem; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
         <p style="font-size:0.68rem; font-weight:600; letter-spacing:0.1em;
@@ -162,7 +285,7 @@
         </form>
       </div>
 
-      <!-- ── Meta card ───────────────────────────────────────────── -->
+      <!-- Meta card -->
       <div style="background:#fff; border:1.5px solid var(--border); border-radius:14px;
                   padding:1.25rem; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
         <p style="font-size:0.68rem; font-weight:600; letter-spacing:0.1em;
@@ -172,6 +295,7 @@
         {% for label, value in [
             ('Reporter', bug.creator.username),
             ('Priority',  bug.priority),
+            ('Comments',  comments|length),
             ('Created',   bug.created_at.strftime('%d %b %Y')),
             ('Updated',   bug.updated_at.strftime('%d %b %Y') if bug.updated_at else '—'),
         ] %}
@@ -186,4 +310,4 @@
     </div>
   </div>
 </div>
-{% endblock %} 
+{% endblock %}

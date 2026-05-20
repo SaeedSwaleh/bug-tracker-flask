@@ -4,7 +4,7 @@ from flask_login import (
     login_required, current_user
 )
 from datetime import datetime
-from models import db, User, Bug
+from models import db, User, Bug, Comment
 
 app = Flask(__name__)
 
@@ -143,12 +143,11 @@ def dashboard():
 @app.route("/bugs")
 @login_required
 def bugs():
-    status_filter    = request.args.get("status",    "")
-    priority_filter  = request.args.get("priority",  "")
-    assignee_filter  = request.args.get("assignee",  "")   # "me" | "none" | ""
+    status_filter   = request.args.get("status",   "")
+    priority_filter = request.args.get("priority", "")
+    assignee_filter = request.args.get("assignee", "")
 
     query = Bug.query
-
     if status_filter in Bug.STATUSES:
         query = query.filter_by(status=status_filter)
     if priority_filter in Bug.PRIORITIES:
@@ -192,8 +191,7 @@ def create_bug():
             flash(error, "danger")
             return render_template("create_bug.html",
                                    priorities=Bug.PRIORITIES,
-                                   users=users,
-                                   form=request.form)
+                                   users=users, form=request.form)
 
         bug = Bug(
             title       = title,
@@ -209,19 +207,24 @@ def create_bug():
         return redirect(url_for("bug_detail", bug_id=bug.id))
 
     return render_template("create_bug.html",
-                           priorities=Bug.PRIORITIES,
-                           users=users,
-                           form={})
+                           priorities=Bug.PRIORITIES, users=users, form={})
 
 
 @app.route("/bugs/<int:bug_id>")
 @login_required
 def bug_detail(bug_id):
-    bug   = Bug.query.get_or_404(bug_id)
-    users = User.query.order_by(User.username).all()
+    bug      = Bug.query.get_or_404(bug_id)
+    users    = User.query.order_by(User.username).all()
+    # Oldest first so the thread reads chronologically
+    comments = (Comment.query
+                .filter_by(bug_id=bug_id)
+                .order_by(Comment.created_at.asc())
+                .all())
+
     return render_template("bug_detail.html",
                            bug=bug,
                            users=users,
+                           comments=comments,
                            statuses=Bug.STATUSES,
                            priorities=Bug.PRIORITIES)
 
@@ -232,14 +235,12 @@ def assign_bug(bug_id):
     bug     = Bug.query.get_or_404(bug_id)
     user_id = request.form.get("user_id", "")
 
-    if user_id == "":
-        bug.assigned_to = None
-    else:
+    bug.assigned_to = int(user_id) if user_id else None
+    if user_id:
         user = User.query.get(int(user_id))
         if not user:
             flash("User not found.", "danger")
             return redirect(url_for("bug_detail", bug_id=bug_id))
-        bug.assigned_to = user.id
 
     bug.updated_at = datetime.utcnow()
     db.session.commit()
@@ -250,7 +251,6 @@ def assign_bug(bug_id):
 @app.route("/bugs/<int:bug_id>/assign-me", methods=["POST"])
 @login_required
 def assign_to_me(bug_id):
-    """One-click assign the bug to the currently logged-in user."""
     bug             = Bug.query.get_or_404(bug_id)
     bug.assigned_to = current_user.id
     bug.updated_at  = datetime.utcnow()
@@ -276,9 +276,51 @@ def update_status(bug_id):
     return redirect(url_for("bug_detail", bug_id=bug_id))
 
 
-@app.route("/test-s3")
-def test_s3():
-    return "Test route active."
+# ── Comment routes ─────────────────────────────────────────────────────────────
+
+@app.route("/bugs/<int:bug_id>/comment", methods=["POST"])
+@login_required
+def add_comment(bug_id):
+    bug     = Bug.query.get_or_404(bug_id)
+    content = request.form.get("content", "").strip()
+
+    if not content:
+        flash("Comment can't be empty.", "danger")
+        return redirect(url_for("bug_detail", bug_id=bug_id))
+
+    if len(content) > 2000:
+        flash("Comment must be under 2000 characters.", "danger")
+        return redirect(url_for("bug_detail", bug_id=bug_id))
+
+    comment = Comment(
+        content   = content,
+        author_id = current_user.id,
+        bug_id    = bug.id,
+    )
+    db.session.add(comment)
+    # Bump the bug's updated_at so it surfaces in activity sorting
+    bug.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash("Comment added.", "success")
+    # Redirect to the comment anchor so the page scrolls to the thread
+    return redirect(url_for("bug_detail", bug_id=bug_id) + "#comments")
+
+
+@app.route("/comments/<int:comment_id>/delete", methods=["POST"])
+@login_required
+def delete_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    bug_id  = comment.bug_id
+
+    # Only the comment author can delete their own comment
+    if comment.author_id != current_user.id:
+        flash("You can only delete your own comments.", "danger")
+        return redirect(url_for("bug_detail", bug_id=bug_id))
+
+    db.session.delete(comment)
+    db.session.commit()
+    flash("Comment deleted.", "info")
+    return redirect(url_for("bug_detail", bug_id=bug_id) + "#comments")
 
 
 if __name__ == "__main__":

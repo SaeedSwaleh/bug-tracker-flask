@@ -2,7 +2,7 @@
 {% block title %}All Bugs — Bug Tracker{% endblock %}
 
 {% block content %}
-<div class="container py-5" style="max-width: 960px;">
+<div class="container py-5" style="max-width: 980px;">
 
   <!-- Header -->
   <div style="border-bottom:2px solid var(--ink); padding-bottom:1.25rem; margin-bottom:1.75rem;"
@@ -20,7 +20,7 @@
     {% for label, af_val in [('All Bugs',''), ('Assigned to Me','me'), ('Unassigned','none')] %}
     <a href="{{ url_for('bugs', assignee=af_val, status=status_filter, priority=priority_filter) }}"
        style="font-size:0.82rem; font-weight:600; padding:0.35rem 1rem; border-radius:999px;
-              text-decoration:none; transition:background 0.15s;
+              text-decoration:none;
               background:{{ 'var(--ink)' if assignee_filter == af_val else '#fff' }};
               color:{{ 'var(--cream)' if assignee_filter == af_val else 'var(--muted)' }};
               border:1.5px solid {{ 'var(--ink)' if assignee_filter == af_val else 'var(--border)' }};">
@@ -31,7 +31,7 @@
     {% endfor %}
   </div>
 
-  <!-- Status + priority filters -->
+  <!-- Status + priority pills -->
   <div class="d-flex flex-wrap gap-2 mb-4">
     <a href="{{ url_for('bugs', assignee=assignee_filter, priority=priority_filter) }}"
        style="font-size:0.78rem; font-weight:600; padding:0.28rem 0.8rem; border-radius:999px;
@@ -81,8 +81,8 @@
   <div style="background:#fff; border:1.5px solid var(--border); border-radius:16px;
               overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
 
-    <!-- Column headers -->
-    <div style="display:grid; grid-template-columns:3rem 1fr 9rem 7rem 8rem;
+    <!-- Column headers — now includes Comments -->
+    <div style="display:grid; grid-template-columns:3rem 1fr 9rem 7rem 8rem 5.5rem;
                 padding:0.7rem 1.25rem; border-bottom:1.5px solid var(--border);
                 font-size:0.68rem; font-weight:600; letter-spacing:0.1em;
                 text-transform:uppercase; color:var(--muted);">
@@ -91,23 +91,30 @@
       <span>Assigned to</span>
       <span>Priority</span>
       <span>Status</span>
+      <span style="text-align:center;">Comments</span>
     </div>
 
     {% for bug in bugs %}
       {% set pc = {'Low':'#4a90d9','Medium':'#f5a623','High':'#c0392b'} %}
       {% set sc = {'Open':'#c0392b','In Progress':'#f5a623','Closed':'#2d8a50'} %}
+      {% set comment_count = bug.comments.count() %}
       <a href="{{ url_for('bug_detail', bug_id=bug.id) }}"
-         style="display:grid; grid-template-columns:3rem 1fr 9rem 7rem 8rem;
+         style="display:grid; grid-template-columns:3rem 1fr 9rem 7rem 8rem 5.5rem;
                 align-items:center; padding:0.85rem 1.25rem;
                 border-bottom:1px solid var(--border); text-decoration:none; color:var(--ink);
                 transition:background 0.15s;"
          onmouseover="this.style.background='var(--cream)'"
          onmouseout="this.style.background=''">
+
         <span style="font-size:0.76rem; color:var(--muted);">{{ bug.id }}</span>
-        <span style="font-weight:500; font-size:0.91rem; padding-right:0.75rem;">{{ bug.title }}</span>
+
+        <span style="font-weight:500; font-size:0.91rem; padding-right:0.75rem;">
+          {{ bug.title }}
+        </span>
 
         <!-- Assignee -->
-        <span style="font-size:0.82rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+        <span style="font-size:0.82rem; color:var(--muted); overflow:hidden;
+                     text-overflow:ellipsis; white-space:nowrap;">
           {% if bug.assignee %}
             {% if bug.assigned_to == current_user.id %}
               <span style="color:#8e44ad; font-weight:600;">
@@ -121,6 +128,7 @@
           {% endif %}
         </span>
 
+        <!-- Priority -->
         <span>
           <span style="font-size:0.7rem; font-weight:700; padding:0.2rem 0.65rem;
                        border-radius:999px; background:{{ pc[bug.priority] }}22;
@@ -128,6 +136,8 @@
             {{ bug.priority }}
           </span>
         </span>
+
+        <!-- Status -->
         <span>
           <span style="font-size:0.7rem; font-weight:700; padding:0.2rem 0.65rem;
                        border-radius:999px; background:{{ sc[bug.status] }}22;
@@ -135,6 +145,22 @@
             {{ bug.status }}
           </span>
         </span>
+
+        <!-- Comment count badge -->
+        <span style="text-align:center;">
+          {% if comment_count > 0 %}
+            <span style="display:inline-flex; align-items:center; gap:0.3rem;
+                         font-size:0.75rem; font-weight:600; color:var(--muted);
+                         background:var(--cream); border:1.5px solid var(--border);
+                         border-radius:999px; padding:0.15rem 0.6rem;">
+              <i class="bi bi-chat-fill" style="font-size:0.65rem;"></i>
+              {{ comment_count }}
+            </span>
+          {% else %}
+            <span style="font-size:0.75rem; color:var(--border);">—</span>
+          {% endif %}
+        </span>
+
       </a>
     {% endfor %}
   </div>
@@ -153,4 +179,4 @@
   {% endif %}
 
 </div>
-{% endblock %} 
+{% endblock %}
