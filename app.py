@@ -10,7 +10,7 @@ import os
 app = Flask(__name__)
 
 # ── Database config ────────────────────────────────────────────────────────────
-DB_HOST     = os.environ.get("DB_HOST",     "bugtrackerdb.cxkgacmis1xf.eu-north-1.rds.amazonaws.com")
+DB_HOST = os.environ.get("DB_HOST", "bugtrackerdb2.cxkqacmis1xf.eu-north-1.rds.amazonaws.com")
 DB_PORT     = os.environ.get("DB_PORT",     "5432")
 DB_NAME     = os.environ.get("DB_NAME",     "bugtrackerdb")
 DB_USER     = os.environ.get("DB_USER",     "bugtracker_admin")
