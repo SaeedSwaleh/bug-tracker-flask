@@ -23,7 +23,7 @@ This project is suited for software development teams who need a simple, lightwe
 
 | Dashboard | Bug List |
 |-----------|----------|
-| ![Dashboard](screenshots/dashboard.JPG) | ![Bugs](screenshots/bugs.JPG) |
+| ![Dashboard](screenshots/dashboard1.JPG) | ![Bugs](screenshots/bugs.JPG) |
 
 | Login | Signup |
 |-------|--------|
